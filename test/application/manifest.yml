@@ -1,0 +1,16 @@
+version: 1
+type: application
+use_sandbox: true
+
+application:
+  name: "Hello World"
+  bundle: "com.example.helloworld"
+  exec: "main.py"
+
+sandbox:
+  filesystem:
+    mounts:
+      - type: dev
+        target: /dev
+      - type: tmp
+        target: tmp

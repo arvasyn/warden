@@ -56,22 +56,15 @@ type Supervision struct {
 
 type Sandbox struct {
 	// All namespaces will default to true if not explicitly declared
-	Namespaces   Namespaces    `yaml:"namespaces,omitempty"`
-	Filesystem   Filesystem    `yaml:"filesystem,omitempty"`
-	Env          EnvPolicy     `yaml:"env,omitempty"`
-	Capabilities Capabilities  `yaml:"capabilities,omitempty"`
-	Process      ProcessPolicy `yaml:"process,omitempty"`
-	Resources    Resources     `yaml:"resources,omitempty"`
-	Portals      []PortalName  `yaml:"portals,omitempty"`
+	Namespaces   Namespaces   `yaml:"namespaces,omitempty"`
+	Filesystem   Filesystem   `yaml:"filesystem,omitempty"`
+	Env          EnvPolicy    `yaml:"env,omitempty"`
+	Capabilities Capabilities `yaml:"capabilities,omitempty"`
+	Resources    Resources    `yaml:"resources,omitempty"`
+	Portals      []PortalName `yaml:"portals,omitempty"`
 }
 
-type Namespaces struct {
-	Net  *bool `yaml:"net,omitempty"`
-	Pid  *bool `yaml:"pid,omitempty"`
-	IPC  *bool `yaml:"ipc,omitempty"`
-	UTS  *bool `yaml:"uts,omitempty"`
-	User *bool `yaml:"user,omitempty"`
-}
+type Namespaces map[string]bool
 
 type Filesystem struct {
 	Mounts []Mount `yaml:"mounts,omitempty"`
@@ -112,11 +105,6 @@ type EnvPolicy struct {
 type Capabilities struct {
 	DropAll bool     `yaml:"drop_all,omitempty"`
 	Add     []string `yaml:"add,omitempty"`
-}
-
-type ProcessPolicy struct {
-	DieWithParent bool `yaml:"die_with_parent,omitempty"`
-	NewSession    bool `yaml:"new_session,omitempty"`
 }
 
 type Resources struct {
