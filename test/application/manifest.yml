@@ -13,4 +13,10 @@ sandbox:
       - type: dev
         target: /dev
       - type: tmp
-        target: tmp
+        target: /tmp
+      - type: bind
+        source: /home/marina
+        target: /home/marina
+  permissions:
+    /home/marina:
+      type: FILE_READ+WRITE

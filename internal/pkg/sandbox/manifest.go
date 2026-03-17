@@ -61,7 +61,10 @@ type Sandbox struct {
 	Env          EnvPolicy    `yaml:"env,omitempty"`
 	Capabilities Capabilities `yaml:"capabilities,omitempty"`
 	Resources    Resources    `yaml:"resources,omitempty"`
-	Portals      []PortalName `yaml:"portals,omitempty"`
+
+	// If accessing a file path, the main key for this would be your file path
+	// For portals, your portal name
+	Permissions map[string]Permission `yaml:"permissions,omitempty"`
 }
 
 type Namespaces map[string]bool
@@ -114,13 +117,20 @@ type Resources struct {
 	MaxProcesses   int `yaml:"max_processes,omitempty"`
 }
 
-type PortalName string
+type Permission struct {
+	Type   PermissionType `yaml:"type"`
+	Reason string         `yaml:"reason,omitempty"`
+}
+
+type PermissionType string
 
 const (
-	PortalFileChooser   PortalName = "file-chooser"
-	PortalNetwork       PortalName = "network"
-	PortalCamera        PortalName = "camera"
-	PortalNotifications PortalName = "notifications"
-	PortalSecret        PortalName = "secret"
-	PortalOpenURI       PortalName = "open-uri"
+	PermissionTypeRead                PermissionType = "FILE_READ"
+	PermissionTypeReadWrite           PermissionType = "FILE_READ+WRITE"
+	PermissionTypePortalFileChooser   PermissionType = "file-chooser"
+	PermissionTypePortalNetwork       PermissionType = "network"
+	PermissionTypePortalCamera        PermissionType = "camera"
+	PermissionTypePortalNotifications PermissionType = "notifications"
+	PermissionTypePortalSecret        PermissionType = "secret"
+	PermissionTypePortalOpenURI       PermissionType = "open-uri"
 )
