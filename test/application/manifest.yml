@@ -8,6 +8,10 @@ application:
   exec: "main.py"
 
 sandbox:
+  portals:
+    - org.freedesktop.portal.Notification
+    - org.freedesktop.portal.Desktop
+
   filesystem:
     mounts:
       - type: dev
@@ -19,4 +23,4 @@ sandbox:
         target: /home/marina
   permissions:
     /home/marina:
-      type: FILE_READ+WRITE
+      type: READ+WRITE

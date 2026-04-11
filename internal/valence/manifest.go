@@ -1,7 +1,6 @@
-package prism
+package valence
 
 type Configuration struct {
-	// Current Warden configuration
 	Version    int         `yaml:"version"`
 	Enrollment *Enrollment `yaml:"enrollment"`
 	Modules    []Module    `yaml:"modules"`

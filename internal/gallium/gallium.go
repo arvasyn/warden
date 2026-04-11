@@ -1,19 +1,20 @@
-package photon
+package gallium
 
 import (
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/arvasyn/warden/internal/pkg/apperr"
-	"github.com/arvasyn/warden/internal/pkg/sandbox"
 	"github.com/rs/zerolog/log"
 )
 
-func Run(app sandbox.Manifest, userArgs []string, rootDir string) error {
-	if app.Type == sandbox.UnitTypeApplication && !app.UseSandbox {
-		log.Warn().Type("application", app.Application.Bundle).
+func Run(app Manifest, rootDir string, userArgs []string) error {
+	if app.Type == UnitTypeApplication && !app.UseSandbox {
+		log.Warn().
+			Type("application", app.Application.Bundle).
 			Msg("Tried disabling sandbox")
 
 		return apperr.ErrApplicationNoDisableSandbox
@@ -21,6 +22,15 @@ func Run(app sandbox.Manifest, userArgs []string, rootDir string) error {
 
 	if app.Application.Exec == "" {
 		return apperr.ErrEmptyExec
+	}
+
+	if strings.Contains(app.Application.Exec, "..") {
+		log.Error().
+			Str("application", app.Application.Bundle).
+			Str("exec", app.Application.Exec).
+			Msg("Application tried using path traversal")
+
+		return apperr.ErrAttemptedPathTraversal
 	}
 
 	config, err := NewConfig()
@@ -36,19 +46,21 @@ func Run(app sandbox.Manifest, userArgs []string, rootDir string) error {
 	config.AddEnvironment(app)
 	config.AddCapabilities(app)
 
-	if err := config.NewTempDirectory(app.Application.Bundle, "/var/cache/fontconfig"); err != nil {
+	socket := "/tmp/dbus-proxy-" + app.Application.Bundle
+
+	proxy, err := config.AddDBusProxy(app, socket)
+	if err != nil {
 		return err
 	}
 
-	if dbus := os.Getenv("DBUS_SESSION_BUS_ADDRESS"); dbus != "" {
-		if after, ok := strings.CutPrefix(dbus, "unix:path="); ok {
-			dbus = strings.SplitN(after, ",", 2)[0]
-		}
+	defer func() {
+		proxy.Process.Kill()
+		proxy.Wait()
+		os.Remove(socket)
+	}()
 
-		config.Arguments = append(config.Arguments,
-			"--ro-bind", dbus, dbus,
-			"--setenv", "DBUS_SESSION_BUS_ADDRESS", dbus,
-		)
+	if err := config.NewTempDirectory(app.Application.Bundle, "/var/cache/fontconfig"); err != nil {
+		return err
 	}
 
 	if xauth := os.Getenv("XAUTHORITY"); xauth != "" {
@@ -62,20 +74,35 @@ func Run(app sandbox.Manifest, userArgs []string, rootDir string) error {
 	config.Arguments = append(config.Arguments, "--", path.Join("/app", app.Application.Exec))
 
 	if app.Application.AppendUserArgs {
-		log.Debug().Type("application", app.Application.Bundle).
+		log.Debug().
+			Type("application", app.Application.Bundle).
 			Msgf("Appending user args %s", strings.Join(userArgs, " "))
 
 		config.Arguments = append(config.Arguments, userArgs...)
 	}
 
 	cmd := exec.Command("/usr/bin/bwrap", config.Arguments...)
-	out, err := cmd.CombinedOutput()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: config.UID,
+			Gid: config.GID,
+		},
+	}
+
+	err = cmd.Run()
 	if err != nil {
-		log.Error().Str("output", string(out)).
+		log.Error().
+			Err(err).
 			Msgf("Error executing command: %v", err)
+
 		return err
 	}
 
-	log.Debug().Str("output", string(out)).Msg("Command succeeded")
+	log.Debug().
+		Msg("Command succeeded")
+
 	return nil
 }

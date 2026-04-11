@@ -1,21 +1,20 @@
-package photon
+package gallium
 
 import (
 	"os"
 	"path/filepath"
 
 	"github.com/arvasyn/warden/internal/pkg/apperr"
-	"github.com/arvasyn/warden/internal/pkg/sandbox"
 	"github.com/rs/zerolog/log"
 )
 
-func (c *Config) AddMounts(manifest sandbox.Manifest) error {
+func (c *Config) AddMounts(manifest Manifest) error {
 	for _, mount := range manifest.Sandbox.Filesystem.Mounts {
 		if mount.Source == "" || mount.Target == "" {
 			continue
 		}
 
-		if mount.Type == sandbox.MountTypeTmpfs || mount.Type == sandbox.MountTypeProc || mount.Type == sandbox.MountTypeDev {
+		if mount.Type == MountTypeTmpfs || mount.Type == MountTypeProc || mount.Type == MountTypeDev {
 			args, _, err := c.ProcessMountType(mount, manifest, "", "")
 			if err != nil {
 				return err
@@ -30,7 +29,11 @@ func (c *Config) AddMounts(manifest sandbox.Manifest) error {
 
 		canonicalSource, err := filepath.EvalSymlinks(filepath.Clean(mount.Source))
 		if err != nil {
-			log.Error().Str("source", mount.Source).Err(err).Msg("Failed to resolve source path")
+			log.Error().
+				Str("source", mount.Source).
+				Err(err).
+				Msg("Failed to resolve source path")
+
 			continue
 		}
 
@@ -42,21 +45,24 @@ func (c *Config) AddMounts(manifest sandbox.Manifest) error {
 			}
 		}
 
-		if sandbox.IsPathBlacklisted(canonicalSource) || sandbox.IsPathBlacklisted(canonicalTarget) {
-			log.Warn().Str("application", manifest.Application.Bundle).
+		if IsPathBlacklisted(canonicalSource) || IsPathBlacklisted(canonicalTarget) {
+			log.Warn().
+				Str("application", manifest.Application.Bundle).
 				Msgf("Tried mounting a blacklist path: %s -> %s", canonicalSource, canonicalTarget)
 
 			return apperr.ErrBlacklistedPath
 		}
 
 		if !Ask(manifest, canonicalSource, manifest.Sandbox.Permissions[mount.Source]) {
-			log.Info().Str("application", manifest.Application.Bundle).
+			log.Info().
+				Str("application", manifest.Application.Bundle).
 				Msgf("User denied access to %s", canonicalSource)
 
 			continue
 		}
 
-		log.Info().Str("application", manifest.Application.Bundle).
+		log.Info().
+			Str("application", manifest.Application.Bundle).
 			Msgf("User allowed access to %s", canonicalSource)
 
 		args, skip, err := c.ProcessMountType(mount, manifest, canonicalSource, canonicalTarget)
@@ -74,20 +80,20 @@ func (c *Config) AddMounts(manifest sandbox.Manifest) error {
 	return nil
 }
 
-func (c *Config) ProcessMountType(mount sandbox.Mount, app sandbox.Manifest, canonicalSource, canonicalTarget string) ([]string, bool, error) {
+func (c *Config) ProcessMountType(mount Mount, app Manifest, canonicalSource, canonicalTarget string) ([]string, bool, error) {
 	switch mount.Type {
-	case sandbox.MountTypeBind:
+	case MountTypeBind:
 		return c.ProcessBind(mount, app, canonicalSource, canonicalTarget, false)
-	case sandbox.MountTypeROBind:
+	case MountTypeROBind:
 		return c.ProcessBind(mount, app, canonicalSource, canonicalTarget, true)
-	case sandbox.MountTypeTmpfs:
+	case MountTypeTmpfs:
 		c.Arguments = append(c.Arguments, "--tmpfs", "/tmp")
 		return nil, true, nil
-	case sandbox.MountTypeProc:
+	case MountTypeProc:
 		c.Arguments = append(c.Arguments, "--proc", "/proc")
 		c.AllowSharedPID = false
 		return nil, true, nil
-	case sandbox.MountTypeDev:
+	case MountTypeDev:
 		c.Arguments = append(c.Arguments, "--dev", "/dev")
 		return nil, true, nil
 	default:
@@ -95,26 +101,28 @@ func (c *Config) ProcessMountType(mount sandbox.Mount, app sandbox.Manifest, can
 	}
 }
 
-func (c *Config) ProcessBind(mount sandbox.Mount, app sandbox.Manifest, canonicalSource, canonicalTarget string, readOnly bool) ([]string, bool, error) {
+func (c *Config) ProcessBind(mount Mount, app Manifest, canonicalSource, canonicalTarget string, readOnly bool) ([]string, bool, error) {
 	permission, ok := app.Sandbox.Permissions[mount.Source]
 
 	if !ok {
-		log.Warn().Str("application", app.Application.Bundle).
+		log.Warn().
+			Str("application", app.Application.Bundle).
 			Msg("Custom file mounts must be declared as a permission")
 
 		return nil, true, nil
 	}
 
-	expectedType := sandbox.PermissionTypeReadWrite
+	expectedType := PermissionTypeReadWrite
 	bindType := "--bind"
 
 	if readOnly {
-		expectedType = sandbox.PermissionTypeRead
+		expectedType = PermissionTypeRead
 		bindType = "--ro-bind"
 	}
 
 	if permission.Type != expectedType {
-		log.Warn().Str("application", app.Application.Bundle).
+		log.Warn().
+			Str("application", app.Application.Bundle).
 			Msg("Invalid permission type")
 
 		return nil, true, nil

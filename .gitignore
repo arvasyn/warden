@@ -22,3 +22,6 @@
 
 # IDE
 .idea/
+
+# Ferrite, not done
+/internal/ferrite

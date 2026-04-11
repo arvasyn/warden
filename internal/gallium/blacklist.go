@@ -1,8 +1,10 @@
-package sandbox
+package gallium
 
 import (
 	"slices"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 func IsPathBlacklisted(path string) bool {
@@ -27,6 +29,14 @@ func IsPathBlacklisted(path string) bool {
 		"/etc/crontab",
 		"/etc/cron.d",
 		"/etc/cron.daily",
+	}
+
+	if strings.Contains(path, "..") {
+		log.Error().
+			Str("path", path).
+			Msg("Application tried using path traversal")
+
+		return true
 	}
 
 	if path == "" {

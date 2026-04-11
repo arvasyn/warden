@@ -1,4 +1,4 @@
-package prism
+package valence
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-var Config *Configuration = nil
+var Config *Configuration
 
 func Configure(anchor string) error {
 	splitAnchor := strings.Split(anchor, ":")
